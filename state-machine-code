@@ -1,0 +1,31 @@
+{
+          "Comment": "Transaction Processor State Machine",
+          "StartAt": "ProcessStockTransaction",
+          "States": {
+            "ProcessStockTransaction": {
+              "Type": "Choice",
+              "Choices": [
+              {
+                "Variable": "$.TransactionType",
+                "StringEquals": "BUY",
+                "Next": "ProcessPurchase"
+              },
+              {
+                "Variable": "$.TransactionType",
+                "StringEquals": "SELL",
+                "Next": "ProcessSell"
+              }
+              ]
+            },
+            "ProcessPurchase": {
+              "Type": "Task",
+              "Resource": "[REPLACEME BuyTransactionHandler.Arn]",
+              "End": true
+            },
+            "ProcessSell": {
+              "Type": "Task",
+              "Resource": "[REPLACEME SellTransactionHandler.Arn]",
+              "End": true
+            }
+          }
+        }
