@@ -1,0 +1,94 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Deploying Lambda Function thru CloudFormation'
+Resources:
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName:
+        Fn::Sub: LambdaFunctionRole
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AWSLambdaExecute
+      Path: /
+  BuyTransactionHandler:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3
+          import datetime
+          from urllib.request import urlopen
+          from contextlib import closing
+          import json
+
+          print('Loading Function')
+
+          def process_buy(message, context):
+            print('Received message from Steps Functions')
+            print(message)
+            price = None
+
+            with closing(urlopen("https://financialmodelingprep.com/api/v3/stock/real-time-price/%s"%(message["Stock"]))) as responseData:
+              jsonData = responseData.read()
+              deserialisedData = json.loads(jsonData)
+              price = deserialisedData['price']
+
+
+            response = {}
+            response['Message'] = '%s request received for %s'%(message['TransactionType'],message['Stock'])
+            response['Timestamp'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            response['Stock'] = message['Stock']
+            response['Shares'] = message['Shares']
+            response['Amount'] = price
+            return response
+
+      Handler: index.process_buy
+      Role:
+         Fn::GetAtt:
+            - LambdaRole
+            - Arn
+      Runtime: python3.6
+  SellTransactionHandler:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3
+          import datetime
+
+          print('Loading Function')
+
+          def process_sell(message, context):
+            print('Received message from Steps Functions')
+            print(message)
+
+            response = {}
+            response['Message'] = '%s request received for %s'%(message['TransactionType'],message['Stock'])
+            response['Timestamp'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            response['Stock'] = message['Stock']
+            response['Shares'] = message['Shares']
+            return response
+
+      Handler: index.process_sell
+      Role:
+        Fn::GetAtt:
+          - LambdaRole
+          - Arn
+      Runtime: python3.6
+Outputs:
+  BuyTransactionARN:
+    Description: ARN of BuyTransactionHandler Lambda Function
+    Value: !GetAtt BuyTransactionHandler.Arn
+  SellTransactionARN:
+    Description: ARN of SellTransactionHandler Lambda Function
+    Value: !GetAtt SellTransactionHandler.Arn
+
